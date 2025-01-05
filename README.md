@@ -39,8 +39,8 @@ note: move binaries oc-mirror and oc into /usr/local/bin/
 Pulling redhat openshift images requests the pull secret file of specific redhat account. Your personal pull secret for the Red Hat online repositories can be downloaded from Red Hat (requires Red Hat account).
 ![pullsecret](https://github.com/user-attachments/assets/da4c0fe4-3b9b-4a98-b8a6-0f7fba347e36)
 
-add the credentials of accessing private image registry into pull-secret file
-pull-secret.json file:
+add the credentials of accessing private image registry into pull-secret.json file
+```json
 {
   "auths": {
     "cloud.openshift.com": {
@@ -61,16 +61,17 @@ pull-secret.json file:
     },
     "xxx.yyy.zzz.ttt:5000": {          //xxx.yyy.zzz.ttt is the IP address of priviate image registry
        "auth": ""                      //base64 encoded credentials on priviate image registry
+     }
    }
-  }
 }
-
+```
 ### **1.2 cp pull-secret file to global docker config file**
 cp pull-secret.json ~/.docker/config.json
 
 
 ### **1.3 prepare for the ImageSetConfiguraion file**
 The imageSetConfiguraiton.yaml file defines all necesrray image files and operators catalog. Here are the example for ImageSetConfiguration.yaml file
+```yaml
 {
 apiVersion: mirror.openshift.io/v1alpha2
 kind: ImageSetConfiguration
@@ -99,8 +100,9 @@ mirror:
   - name: registry.redhat.io/ubi8/ubi:latest
   - name: registry.redhat.io/odf4/odf-must-gather-rhel9:v4.16
   - name: registry.redhat.io/rhacm2/acm-must-gather-rhel9:v2.11
-  - name: registry.redhat.io/openshift4/z
+  - name: registry.redhat.io/openshift4/
 }
+```
 
 note: if needs the images and catalog not from redhat, it needs specify the separate imageSetConfiguration file to define them. e.g Nvidia-GPU operator is not provided by redhat.
 
@@ -110,14 +112,14 @@ There are two options to mirror images to private image registry, one is directl
 #### **1.4.1 mirror remote redhat image registry to local disk**
 
 oc mirror --config=./ImageSetConfiguration.yaml file:release_mirror/
-
+```bash
 $ ls -la release_mirror/
 total 109383720
 drwxr-x--- 3 rmatusch rmatusch         4096 Aug  5 13:08 .
 drwxr-x--- 3 rmatusch rmatusch         4096 Aug  5 10:33 ..
 -rw-r--r-- 1 rmatusch rmatusch 112008886272 Aug  5 13:21 mirror_seq1_000000.tar
 drwxr-xr-x 4 rmatusch rmatusch         4096 Aug  5 13:04 oc-mirror-workspace
-
+```
 
 #### **1.4.2 uploading the images from local disk to private image registry**
 oc mirror --from=.release_mirror/mirror_seq1_000000.tar docker://xxx.yyy.zzz.ttt:5000         //xxx.yyy.zzz.ttt is the ip of priviate image registry
@@ -126,13 +128,14 @@ oc mirror --from=.release_mirror/mirror_seq1_000000.tar docker://xxx.yyy.zzz.ttt
 #### **1.4.3 verify the image availability via querying repository**
 curl -s -u "xxx:yyy" https://zzz.ttt.aaa.bbb:5000/v2/_catalog --cacert domain.crt | jq .
 
+```bash
 xxx: account of auth when creating priviate docker image registry
 yyy: password of auth when creating priviate docker image registry
 zzz.ttt.aaa.bbb: ip address of priviate docker image registry
 domain.crt: certificate of priviate docker image registry
+```
 
-
-results:
+```json
 {
   "repositories": [
     "ocp/images/lvms4/lvms-must-gather-rhel9",
@@ -237,3 +240,108 @@ results:
     "ocp4-release/ubi8/ubi-micro"
   ]
 }
+```
+
+#### **1.4.4 identify the image content source policy and catalog source custom resource manifests **
+After uploading the image to priviate docker image registry, it auto generates the image content source policy and catalog source customer resources manifests file under directory./oc-mirror-workspace/, those manifests files are requested for OCP instllation in later phase. the example:
+```bash
+xxx:~/sam/openshift/registry/oc-mirror-workspace$ ll results-1735268307
+total 156
+drwxrwxr-x 4 aods aods   4096 Dec 27 03:36 ./
+drwxrwxr-x 8 aods aods   4096 Jan  1 04:18 ../
+-rwxrwxr-x 1 aods aods    226 Dec 27 03:36 catalogSource-cs-redhat-operator-index.yaml*
+drwxrwxr-x 2 aods aods   4096 Dec 27 02:58 charts/
+-rwxrwxr-x 1 aods aods   1892 Dec 27 03:36 imageContentSourcePolicy.yaml*
+-rw-rw-r-- 1 aods aods 127483 Dec 27 03:36 mapping.txt
+drwxrwxr-x 2 aods aods   4096 Dec 27 03:34 release-signatures/
+-rwxrwxr-x 1 aods aods    317 Dec 27 03:36 updateService.yaml*
+
+```
+```yaml
+xxx:~/sam/openshift/registry/oc-mirror-workspace/results-1735268307$ cat imageContentSourcePolicy.yaml
+---
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: generic-0
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/openshift4
+    source: registry.redhat.io/openshift4
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/ubi8
+    source: registry.redhat.io/ubi8
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/ubi8
+    source: registry.access.redhat.com/ubi8
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/rhel8
+    source: registry.redhat.io/rhel8
+---
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  labels:
+    operators.openshift.org/catalog: "true"
+  name: operator-0
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/openshift-gitops-1
+    source: registry.redhat.io/openshift-gitops-1
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/odf4
+    source: registry.redhat.io/odf4
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/rh-sso-7
+    source: registry.redhat.io/rh-sso-7
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/lvms4
+    source: registry.redhat.io/lvms4
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/rhel8
+    source: registry.redhat.io/rhel8
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/rhceph
+    source: registry.redhat.io/rhceph
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/multicluster-engine
+    source: registry.redhat.io/multicluster-engine
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/openshift4
+    source: registry.redhat.io/openshift4
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/rhacm2
+    source: registry.redhat.io/rhacm2
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/rhel9
+    source: registry.redhat.io/rhel9
+---
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: release-0
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/openshift/release
+    source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/openshift/release-images
+    source: quay.io/openshift-release-dev/ocp-release
+
+```
+
+```yaml
+xxx:~/sam/openshift/registry/oc-mirror-workspace/results-1735268307$ cat catalogSource-cs-redhat-operator-index.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: cs-redhat-operator-index
+  namespace: openshift-marketplace
+spec:
+  image: xxx.yyy.zzz.ttt/redhat/redhat-operator-index:v4.16
+  sourceType: grpc
+
+```
