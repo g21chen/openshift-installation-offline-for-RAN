@@ -577,7 +577,7 @@ copy all mandatory files into the work directory. example as below:
 
 output:
 ```bash
- [labuser@neat-152 ocp]$ tree ./artifacts/
+ [test]$ tree ./artifacts/
 ./artifacts/
 ├── 99-masters-chrony-configuration.yaml
 ├── agent.x86_64.iso
@@ -596,3 +596,21 @@ kubeadmin-password: password on access the redhat console
 kubeconfig: kube config file to access k8s API server
 note: after this step, some configuration files in this directory will be automatcially removed.
 
+#### **2.3.4 mount iso image into target server**
+##### **2.3.4.1 login the BMC network**
+
+![ILO BMC](https://github.com/user-attachments/assets/db3b4aea-de43-45e5-9b1e-248b37d29b53)
+
+##### **2.3.4.2 configure server boot from CD/DVD Drive**
+
+![BOOT-FROM-CD](https://github.com/user-attachments/assets/4cc29f5d-c3bc-4efe-9e11-e4cfae913255)
+
+
+##### **2.3.4.3 mount iso file**
+
+![mount iso](https://github.com/user-attachments/assets/b61635a1-afcd-4ac9-97be-7a2e062e1556)
+
+##### **2.3.4.4 reset server**
+![reset](https://github.com/user-attachments/assets/cda771fa-e070-486c-9de4-6611af1adf75)
+
+after reset, the iso is loaded in server and one simiple redhat OS is available, and it will trigger the connection to redhat assisted installer.
