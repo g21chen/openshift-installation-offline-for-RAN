@@ -383,4 +383,216 @@ spec:
      }
 }
 ```
-auth are the credentials when create the priviate image registry
+auth are base64 encoded result of the credentials when create the priviate image registry
+
+#### "2.2.3 prepare for agent config file"
+agent-config file configure the infra network to communcate with outside, dns server. below is the example of single node:
+```yaml
+apiVersion: v1alpha1
+metadata:
+  name: test
+hosts:
+  - hostname: master0
+    role: master
+    interfaces:
+     - name: ens14f0                     
+       macAddress: b4:96:91:e1:xx:yy      //Mac address of infra network interface
+    rootDeviceHints:
+      deviceName: "/dev/nvme0n1"          //disk of ocp system installation  
+    networkConfig:
+      dns-resolver:
+        config:
+          server:
+            - 10.48.xx.yy               //DNS server address
+      interfaces:
+        - name: ens14f0
+          type: ethernet
+          state: up
+          ipv4:
+            enabled: true
+            dhcp: false
+          ipv6:
+            enabled: false
+          mac-address: b4:96:91:e1:xx:yy
+          mtu: 1500
+          ethernet:
+            auto-negotiation: true
+            duplex: full
+            speed: 25000
+        - name: ens14f0.zzz         //zzz is the vlan   
+          type: vlan
+          state: up
+          ipv4:
+            enabled: true
+            dhcp: false
+            address:
+            - ip: 192.168.xxx.yyy    //infra IP of target server
+              prefix-length: 28
+          vlan:
+            base-iface: ens14f0
+            id: zzz             //vlan ID
+      routes:
+        config:
+          - destination: 0.0.0.0/0
+            next-hop-address: 192.168.xxx.zzz    //gateway IP of infra subnetwork
+            next-hop-interface: ens14f0.zzz      //vlan ID
+            table-id: 254
+
+```
+
+#### **2.2.4 prepare for install-config file**
+install-config file includes the hardware cpu model, deployment type, internal cluster network, ssh public key, image source contents policy, pull-secret and certificates.
+```bash
+apiVersion: v1
+baseDomain: vran.mnrancis.nsn-rdnet.net
+compute:
+ - architecture: amd64
+   hyperthreading: Enabled
+   name: worker
+   replicas: 0
+controlPlane:
+  architecture: amd64
+  hyperthreading: Enabled
+  name: master
+  replicas: 1
+metadata:
+  name: test
+networking:
+  clusterNetwork:
+    - cidr: 172.21.0.0/16
+      hostPrefix: 23
+  machineNetwork:
+    - cidr: 192.168.xxx.yyy/28   //infra network
+  networkType: OVNKubernetes
+  serviceNetwork:
+    - 172.22.0.0/16
+platform:
+  none: {}
+pullSecret: "{\"auths\": {\"xxx.yyy.zzz.ttt:5000\": {\"auth\": \"xyzhigzzzzzhffff\"}}}"   //auths of private image registry
+sshKey: 'ssh-rsa AAAAB3NzaC1yc2EAAAADxxxAQDITBmY6zqniC21HxxxxxxxxxxxxPUQFvN5xP8yLNF5aCFi4yjfLHCxxxxxxxx88rE5qtZCje519ADQjD3D5sQw6DWLGXbIQ2/Xl9LJpKLG5f316in8DITIxxxxxxxxxxn0E+9IMEjtWjvEoWxMLGSekb4SXMqk3rZ2tufa2bpFleqn5Vd5y+Yj0D8Tx7XCJct01Vpgw3R2FTH47DppQiGskKjgy+gGGekUTdPucMsbRRpTShTENj4YAJssCT5+4AiP7xJVETD+VpwdUaElUdObQcrOyC723PfZPGBpGKnDYyYySQgNJ0NqAGMYQiFc3TvagUMQ5Hrfa8QjKTAOtDUIcJAVBxxxxxxxx1KO3i8CaTSCe0wipRfKTKcWy7bWnTj41uDTFGBsOUsBx7bIgDiebtcI5c70hAj2SX6fFin5Lr0CQKWxxxxxxxxxIMUU3Rr/vS/cmZI7RcMhH9yT4pmR1XzwmOj83OHCmwhn8z++eexBhrZIXoEu0DF5fS8zN82oAE2epEYxBTzllegYxxxxxpubv7n0nUO9hxxxxx9mmxmSkeAFQgdV/lInLsaNM0b8lArehUZ2lqFgwspVuvp/Ifqt4NcvK391SpYf63lt4TcPpUfw90oXxxNw3Mhak+zC1pPNKjs5B5QNh4Dw2rMIw==xxxxxxxxxxxx'
+imageContentSources:
+- mirrors:
+  - xxxx.yyy.zzz.tttt:5000/openshift/release                // xxxx.yyy.zzz.tttt: ip address of docker image registry
+  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+- mirrors:
+  - xxxx.yyy.zzz.tttt:5000/openshift/release-images
+  source: quay.io/openshift-release-dev/ocp-release
+additionalTrustBundle: |
+  -----BEGIN CERTIFICATE-----
+  MIIF/jCCA+agAwIBAgIUHBDFdEqt+kdBkPjuy75DzV/ZS4kwDQYJKoZIhvcNAQEL
+  BQAwgYUxCzAJxxxxxxxTAlVTMQ4wDAYDVQQIDAVUZXhhczEPMA0GA1UEBwwGRGFs
+  bGFzMQwwCgYDVQQKDAN0b20xDTALBgNVBAsMBGphY2sxEjAQBgNVBAMMCWNyYW4u
+  Y3JhbjEkMCIGCSqGSIb3DQEJARYVZ2FuZy4xLmNoZW5Abm9raWEuY29tMB4XDTI0
+  MTIxNDA1MDcyyyyyyy1MTIxNDA1MDc1NVowgYUxCzAJBgNVBAYTAlVTMQ4wDAYD
+  VQQIDAVUZXhhczEPMA0GA1UEBwwGRGFsbGFzMQwwCgYDVQQKDAN0b20xDTALBgNV
+  BAsMBGphY2sxEjAQBgNVBAMMCWNyYW4uY3JhbjEkMCIGCSqGSIb3DQEJARYVZ2Fu
+  Zy4xLmNoZW5AbxxxxxxxxxxxxIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKC
+  AgEAm4z5lRZto0DqH3pJNHgCMudaK0iwIrxp805b+o1SXINzIHZjqiUoNgVQZkFN
+  GFe19/j3uZa271LG3wwrgjCXouYJOTXxfmx8qECu51W7iPtbIRU1D+8pVfRTjCTL
+  jABrlRrBjEHRwzzzzzzzzzzzzyFVfUTCLVfgvy5Onh1PEGhpsA7QLkMQkjZSyOWB
+  1zVCSZ3aVLx1ea+pvsFU3oBsofmN4KIUoN1nhIqErHeHRUmAwxCPUP7r0Wh8adsi
+  4I5N0J14CeGjmqK0S9q4TTHT0bqc7L80+MDSjTuskRKbCmLUykacKLpPEHslSobE
+  NT/CR1GV6ymjvzbbbbbbbbbbbbbbPPZ3fA9BewgeDzyDChW4fe3fUaaweZcqI/23
+  CojlQO10AMsicifUKFkdAo1Z6fTL526g2R9UqSdcx4IRNoI4lqcnhF8Rk5D6dyiX
+  H9hxJ668DEGefEBRyuZ0ylXIw65JOPplwh2cyDiYTm2rYTgvYRwrOsiW/lb/JF8B
+  WaVlIq+tDVdoMpZcFlLufpsE8wMGCh59MYFSzRRKmqMOZbtkPevXahyGjpY3kOty
+  P97mW6Z3mdCJ7u369qVty/2a6zzRmZLDSm6E2mUEvgf9gzpSSim0EgsU+L6dTAIW
+  sMeiTYl2qisK7dspbc9RdOPCwah4Xsf+6XgJSulTKMxYPicCAwEAAaNkMGIwHQYD
+  VR0OBBYEFDwGrW3gmEhLg8DCWpCH2f1anI3xMB8GA1UdIwQYMBaAFDwGrW3gmEhL
+  g8DCWpCH2f1anI3xMA8GA1UdEwEB/wQFMAMBAf8wDwYDVR0RBAgwBocECjAIxzAN
+  BgkqhkiG9w0BAQsFAAOCAgEAGPBfMjHm0v9DDpNAzHLppSQwELGIfjFchc/4fILo
+  rfdktapDZoUfMyNLQujgfb3D1HKhNhXTejgZWzMCjObOfRTH9W6hEQw2H3i0GaPb
+  oXpkzB31HAT9+gTXIXZIm9EWl8EKxchEx6WJvj/7tYQPx4n68zw8vBiKcdVQxU+X
+  UT+uKqKyd9+SfLI0Asa5FnHx8sgkg1x4jclkOKzqr7VpqfyyeQzbS8p/H3BhE1ee
+  5yUf3cfk7BVsgQkrLxxxxxxxxxxxxxxxmLPThHJGFIKWfZTsU4u+u5r3yj1v6gPN
+  DX/A5GwqqP4EGWpdMlxMAAPgWrItpobHSkYbQjKHWkBQyluqZx2fGeSsNpTVki1N
+  ThF1mMJBp75gHUN6xuyTx1+X2qtBG8se61ONebHZXY7imRmOfyW/I9CWxcFpy47L
+  AWyO6tMuUiqHJ/By5xxxxxxxxxxxxxxxxxxxxDIwIfmI/l2ABHUiufsT/Dw8yakR
+  EgvAyKytP4XQuWXwh+SGcCCRKfcZSiH+66PszhNL/es7LNG7Ne58OduRIe3TfEq1
+  HS+XbOQAwjC5e+qbjilxxxxxxxxxxxxxxxxRWjW9JuTx/eGYhMkqxFak59R/kgwJ
+  UdWIRBXAJYiGhwD9+xsKdY98peUXtWupasCwRiVmZE0QEd0V6wrXac2Qk3Z2+0pf
+  7VY=
+  -----END CERTIFICATE-----
+```
+#### **2.2.5 prepare for chronyd file**
+The target server as NTP client need configure the NTP server address in chronyd configuration file
+```yaml
+[xxx]$ cat 99-masters-chrony-configuration.yaml
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 99-masters-chrony-configuration
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+      - contents:
+          source: data:text/plain;charset=utf-8;base64,ZHJpZnRmaWxlIC92YXIvbGliL2Nocm9ueS9kcmlmdAptYWtlc3RlcCAxLjAgMwpydGNzeW5jCmxvZ2RpciAvdmFyL2xvZy9jaHJvbnkKc2VydmVyIG50cC4xMC40OC54eHgueXl5IGlidXJzdA==
+        mode: 420
+        overwrite: true
+        path: /etc/chrony.conf
+```
+```bash
+$ echo "ZHJpZnRmaWxlIC92YXIvbGliL2Nocm9ueS9kcmlmdAptYWtlc3RlcCAxLjAgMwpydGNzeW5jCmxvZ2RpciAvdmFyL2xvZy9jaHJvbnkKc2VydmVyIG50cC4xMC40OC54eHgueXl5IGlidXJzdA==" | base64 -d
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+logdir /var/log/chrony
+server 10.48.xxx.yyy iburst
+$
+```
+
+### **2.3 deploy OCP**
+#### **2.3.1 extract the openshift-install tool from docker image registry**
+The prepared files in 2.2.1, 2.2.2 and certiicates are required for this step, the commandline as below:
+```bash
+oc adm release extract --command=openshift-install --certificate-authority=/home/labuser/sam/ocp-install/ocp/artifacts/openshift/domain.crt xxx.yyy.zzz.ttt:5000/openshift/release-images:4.16.24-x86_64 --icsp-file=/home/labuser/sam/ocp-install/ocp/artifacts/openshift/ImageContentSourcePolicy.yaml --to=/home/labuser/sam/ocp-install/ocp/artifacts/ -a /home/labuser/sam/ocp-install/ocp/artifacts/openshift/pull_secret.json
+
+```
+after this step, it generates the openshift-install bin.
+
+#### **2.3.2 copy the configuration into work directory**
+copy all mandatory files into the work directory. example as below:
+```bash
+[xxxxxxx]$ tree
+.
+├── artifacts
+│   ├── 99-masters-chrony-configuration.yaml
+│   ├── agent-config.yaml
+│   ├── install-config.yaml
+│   ├── openshift
+│   │   ├── domain.crt
+│   │   ├── ImageContentSourcePolicy.yaml
+│   │   └── pull_secret.yaml
+│   └── openshift-install
+
+```
+
+#### **2.3.3 create iso dicovery image**
+ ./openshift-install agent create image --dir /home/labuser/sam/ocp-install/ocp/artifacts
+
+output:
+```bash
+ [labuser@neat-152 ocp]$ tree ./artifacts/
+./artifacts/
+├── 99-masters-chrony-configuration.yaml
+├── agent.x86_64.iso
+├── auth
+│   ├── kubeadmin-password
+│   └── kubeconfig
+├── openshift
+│   ├── domain.crt
+│   └── pull_secret.json
+├── openshift-install
+
+```
+it generates the necessary results:
+agent.x86_64.iso: iso image
+kubeadmin-password: password on access the redhat console
+kubeconfig: kube config file to access k8s API server
+note: after this step, some configuration files in this directory will be automatcially removed.
+
