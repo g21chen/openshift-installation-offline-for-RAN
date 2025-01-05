@@ -242,7 +242,7 @@ domain.crt: certificate of priviate docker image registry
 }
 ```
 
-#### **1.4.4 identify the image content source policy and catalog source custom resource manifests **
+#### **1.4.4 identify the image content source policy and catalog source custom resource manifests**
 After uploading the image to priviate docker image registry, it auto generates the image content source policy and catalog source customer resources manifests file under directory./oc-mirror-workspace/, those manifests files are requested for OCP instllation in later phase. the example:
 ```bash
 xxx:~/sam/openshift/registry/oc-mirror-workspace$ ll results-1735268307
