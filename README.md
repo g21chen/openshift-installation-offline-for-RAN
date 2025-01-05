@@ -345,3 +345,42 @@ spec:
   sourceType: grpc
 
 ```
+## **2 deploy openshift container platform**
+### **2.1 tool insallation in jump server**
+install nmstate.  nmstate is required for the network configuration in ocp installation
+
+redhat/centos/rocky: 
+```bash
+$ sudo dnf -y install nmstate
+ 
+$ dnf list nmstate --installed
+Installed Packages
+nmstate.x86_64                                                                        2.2.21-2.fc38                                                                        @updates
+```
+### **2.2 prepare for the configuration file for OCP deployment**
+#### "2.2.1 image content source policy"
+ImageContentSourcePolicy.yaml
+```yaml
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: test
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/openshift/release
+    source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+
+```
+#### "2.2.2 pull-secret.json"
+```json
+{
+    "auths": {
+        "xxx.yyy.zzz.ttt:5000": {
+           "auth": "xxxyyyzzztttooo",
+           "email": "xxx.yyy@zzz.com"
+           }
+     }
+}
+```
+auth are the credentials when create the priviate image registry
