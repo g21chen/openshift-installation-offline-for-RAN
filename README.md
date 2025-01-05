@@ -1,4 +1,4 @@
-# openshift-installation-offline-for-RAN
+![image](https://github.com/user-attachments/assets/caae810a-69ff-4376-b7f4-14f4f0619c61)# openshift-installation-offline-for-RAN
 
 # **Descriptions**
 This repository is to specify how to offline install openshift due to some network restriction scenarios.
@@ -444,7 +444,7 @@ hosts:
 install-config file includes the hardware cpu model, deployment type, internal cluster network, ssh public key, image source contents policy, pull-secret and certificates.
 ```bash
 apiVersion: v1
-baseDomain: vran.mnrancis.nsn-rdnet.net
+baseDomain: xxx.yyy.zzz.qqq   //xxx.yyy.zzz.qqq domain name
 compute:
  - architecture: amd64
    hyperthreading: Enabled
@@ -596,21 +596,87 @@ kubeadmin-password: password on access the redhat console
 kubeconfig: kube config file to access k8s API server
 note: after this step, some configuration files in this directory will be automatcially removed.
 
-#### **2.3.4 mount iso image into target server**
-##### **2.3.4.1 login the BMC network**
+
+#### **2.3.4 add the DNS entries into DNS server**
+examples on DNS entries
+```bash
+api.clustername.domainname                  3600    xxx.yyy.zzz.ttt
+api-int.clustername.domainname              3600    xxx.yyy.zzz.ttt
+*.apps.clustername.domainname               3600    xxx.yyy.zzz.ttt
+master0.clustername.domainname              3600    xxx.yyy.zzz.ttt
+```
+clustername and domainname shall be aligned with configuration in install-config.yaml file in 2.2.4. xxx.yyy.zzz.ttt is the infrastructure IP.
+
+#### **2.3.5 mount iso image into target server**
+##### **2.3.5.1 login the BMC network**
 
 ![ILO BMC](https://github.com/user-attachments/assets/db3b4aea-de43-45e5-9b1e-248b37d29b53)
 
-##### **2.3.4.2 configure server boot from CD/DVD Drive**
+##### **2.3.5.2 configure server boot from CD/DVD Drive**
 
 ![BOOT-FROM-CD](https://github.com/user-attachments/assets/4cc29f5d-c3bc-4efe-9e11-e4cfae913255)
 
 
-##### **2.3.4.3 mount iso file**
+##### **2.3.5.3 mount iso file**
 
 ![mount iso](https://github.com/user-attachments/assets/b61635a1-afcd-4ac9-97be-7a2e062e1556)
 
-##### **2.3.4.4 reset server**
+##### **2.3.5.4 reset server**
 ![reset](https://github.com/user-attachments/assets/cda771fa-e070-486c-9de4-6611af1adf75)
 
 after reset, the iso is loaded in server and one simiple redhat OS is available, and it will trigger the connection to redhat assisted installer.
+
+
+#### **2.3.6 monitor the installation progress**
+```bash
+[test]$   ./openshift-install agent wait-for install-complete --dir /home/labuser/sam/ocp-install/ocp/artifacts
+
+
+INFO Waiting for cluster install to initialize. Sleeping for 30 seconds
+INFO Cluster is not ready for install. Check validations
+WARNING Cluster validation: The cluster has hosts that are not ready to install.
+WARNING Host master0 validation: Host couldn't synchronize with any NTP server
+WARNING Host master0: updated status from discovering to insufficient (Host cannot be installed due to following failing validation(s): Host couldn't synchronize with any NTP server)
+INFO Host master0: updated status from insufficient to known (Host is ready to be installed)
+INFO Cluster is ready for install
+INFO Cluster validation: All hosts in the cluster are ready to install.
+INFO Preparing cluster for installation
+INFO Host master0: updated status from known to preparing-for-installation (Host finished successfully to prepare for installation)
+INFO Host master0: New image status quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:ea58e8db48664788a10be825c68fd13f32bb1018fe8a0d5100f6615df90cc704. result: success. time: 0.70 seconds; size: 401.44 Megabytes; download rate: 605.45 MBps
+INFO Host master0: updated status from preparing-for-installation to preparing-successful (Host finished successfully to prepare for installation)
+INFO Cluster installation in progress
+INFO Host master0: updated status from preparing-successful to installing (Installation is in progress)
+INFO Host: master0, reached installation stage Installing: bootstrap
+INFO Host: master0, reached installation stage Waiting for bootkube
+INFO Bootstrap Kube API Initialized
+INFO Host: master0, reached installation stage Writing image to disk
+INFO Host: master0, reached installation stage Writing image to disk: 5%
+INFO Host: master0, reached installation stage Writing image to disk: 10%
+INFO Host: master0, reached installation stage Writing image to disk: 15%
+INFO Host: master0, reached installation stage Writing image to disk: 20%
+INFO Host: master0, reached installation stage Writing image to disk: 25%
+INFO Host: master0, reached installation stage Writing image to disk: 33%
+INFO Host: master0, reached installation stage Writing image to disk: 38%
+INFO Host: master0, reached installation stage Writing image to disk: 43%
+INFO Host: master0, reached installation stage Writing image to disk: 49%
+INFO Host: master0, reached installation stage Writing image to disk: 54%
+INFO Host: master0, reached installation stage Writing image to disk: 59%
+INFO Host: master0, reached installation stage Writing image to disk: 64%
+INFO Host: master0, reached installation stage Writing image to disk: 69%
+INFO Host: master0, reached installation stage Writing image to disk: 76%
+INFO Host: master0, reached installation stage Writing image to disk: 81%
+INFO Host: master0, reached installation stage Writing image to disk: 86%
+INFO Host: master0, reached installation stage Writing image to disk: 92%
+INFO Host: master0, reached installation stage Writing image to disk: 100%
+INFO Bootstrap configMap status is complete
+INFO Bootstrap is complete
+INFO cluster bootstrap is complete
+INFO Cluster is installed
+INFO Install complete!
+INFO To access the cluster as the system:admin user when using 'oc', run
+INFO     export KUBECONFIG=/home/labuser/sam/ocp-install/ocp/artifacts/auth/kubeconfig
+INFO Access the OpenShift web-console here: https://console-openshift-console.apps.clustername.domainname
+INFO Login to the console with user: "kubeadmin", and password: "XQtqF-g2kUZ-YVWxx-BByyy"
+
+```
+
