@@ -680,3 +680,60 @@ INFO Login to the console with user: "kubeadmin", and password: "XQtqF-g2kUZ-YVW
 
 ```
 
+### **2.4 OCP post configuration**
+After step 2.3, the basic OCP installation is completed, but usually it needs do further operations installations which not included in default OCP installations. e.g LVMS, SR-IOV, PTP and other independent Source Vendor operators.
+the catalog sources includes all provided operators. however, by default the catalog sources including redhat-operators, community-operators, certificated-opertora and redhat-marketplace are online catalogs. In offline OCP instllation mode, it needs to disable all current catalog sources, and activates the customerized/personal catalog source - cs-redhat-opertora-index.
+#### **2.4.1 disable the default catalog sources**
+
+current catalogsource:
+```bash
+$ oc get catalogsources -A
+NAMESPACE               NAME                       DISPLAY   TYPE   PUBLISHER   AGE
+openshift-marketplace   community-operators                  grpc               2h
+openshift-marketplace   certified-operators                  grpc               2h
+openshift-marketplace   redhat-marketplace                   grpc               2h
+openshift-marketplace   redhat-operators                     grpc               2h
+$
+```
+Disable the default catalogsource
+```bash
+$ oc patch operatorhubs/cluster --type merge --patch '{"spec":{"sources":[{"disabled": true,"name": "community-operators"},{"disabled": true,"name": "certified-operators"},{"disabled": true,"name": "redhat-marketplace"},{"disabled": true,"name": "redhat-operators"}]}}'
+```
+
+apply for the catalog configuration catalogSource "cs-redhat-operator-index.yaml" in 1.4.4
+```bash
+$ oc apply -f catalogSource.yaml
+catalogsource.operators.coreos.com/cs-redhat-operator-index created
+$
+```
+
+apply for the image content source policy "imageContentSourcePolicy.yaml" in 1.4.4
+```bash
+$ oc apply -f imageContentSourcePolicy.yaml
+imagecontentsourcepolicy.operator.openshift.io/generic-0 created
+imagecontentsourcepolicy.operator.openshift.io/operator-0 created
+imagecontentsourcepolicy.operator.openshift.io/release-0 created
+$
+```
+#### **2.4.2 verify catalog sources**
+
+```bash
+[test]$ oc get imagecontentsourcepolicy -A
+NAME         AGE
+generic-0    8d
+operator-0   8d
+release-0    8d
+test         9d
+[test]$ oc get catalogsources -A
+NAMESPACE               NAME                          DISPLAY   TYPE   PUBLISHER   AGE
+openshift-marketplace   cs-redhat-operator-index                grpc               8d
+
+[test]$ oc get pods -n openshift-marketplace
+NAME                                                              READY   STATUS      RESTARTS   AGE
+cs-redhat-operator-index-nsmc8                                    1/1     Running     2          7d22h
+marketplace-operator-7c5c648b99-pjnr9                             1/1     Running     14         9d
+
+```
+
+#### **2.4.3 configure the operators**
+At this step, it has two options to install the operators under cs-redhat-operators-index. note: still some operators provided by independent source vendor are not included. e.g Nvidia-GPU operator
