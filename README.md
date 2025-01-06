@@ -13,7 +13,7 @@
       - [1.4.1 mirror remote redhat image registry to local disk](#141-mirror-remote-redhat-image-registry-to-local-disk)
       - [1.4.2 uploading the images from local disk to private image registry](#142-uploading-the-images-from-local-disk-to-private-image-registry)
       - [1.4.3 verify the image availability via querying repository](#143-verify-the-image-availability-via-querying-repository)
-      - [1.4.4 identify the image content source policy and catalog source custom resource manifests][#144-identify-the-image-content-source-policy-and-catalog-source-custom-resource-manifests]
+      - [1.4.4 identify the image content source policy and catalog source custom resource manifests](#144-identify-the-image-content-source-policy-and-catalog-source-custom-resource-manifests)
   - [2. deploy openshift container platform](#2-deploy-openshift-container-platform)
     - [2.1 tool insallation in jump server](#21-tool-insallation-in-jump-server)
     - [2.2 prepare for the configuration file for OCP deployment](#22-prepare-for-the-configuration-file-for-OCP-deployment)
