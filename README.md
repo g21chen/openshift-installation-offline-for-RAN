@@ -736,4 +736,188 @@ marketplace-operator-7c5c648b99-pjnr9                             1/1     Runnin
 ```
 
 #### **2.4.3 configure the operators**
-At this step, it has two options to install the operators under cs-redhat-operators-index. note: still some operators provided by independent source vendor are not included. e.g Nvidia-GPU operator
+At this step, it has two options to install the operators under cs-redhat-operators-index. note: still some operators provided by independent source vendor are not included. e.g Nvidia-GPU operator.
+one option is to install operator from operator hub in redhat console GUI. another option is to use commandline to install it. below is one example with option2 to install the ptp oprerator via apply following three files.
+```yaml
+[labuser@neat-152 ptp-sync]$ cat ptp-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-ptp
+  annotations:
+    workload.openshift.io/allowed: management
+  labels:
+    name: openshift-ptp
+    openshift.io/cluster-monitoring: "true"
+[labuser@neat-152 ptp-sync]$
+[labuser@neat-152 ptp-sync]$ cat operator-groups.yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: ptp-operators
+  namespace: openshift-ptp
+spec:
+  targetNamespaces:
+  - openshift-ptp
+[labuser@neat-152 ptp-sync]$ cat ptp-subscription.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: ptp-operator-subscription
+  namespace: openshift-ptp
+spec:
+  installPlanApproval: Automatic
+  name: ptp-operator
+  source: cs-redhat-operator-index
+  sourceNamespace: openshift-marketplace
+
+```
+
+### **2.5 Additional OCP post configuration**
+it requests additional OCP post configuration for some operators.e .g Nvidia-GPU opertor
+
+#### **2.5.1 query the nvidia GPU opertor catalog**
+```bash
+test:~/sam/openshift/registry$ ./oc-mirror list operators --catalog=registry.redhat.io/redhat/certified-operator-index:v4.16 --package=gpu-operator-certified
+NAME                    DISPLAY NAME         DEFAULT CHANNEL
+gpu-operator-certified  NVIDIA GPU Operator  v24.9
+
+PACKAGE                 CHANNEL  HEAD
+gpu-operator-certified  stable   gpu-operator-certified.v24.9.1
+gpu-operator-certified  v1.10    gpu-operator-certified.v1.10.1
+gpu-operator-certified  v1.11    gpu-operator-certified.v1.11.1
+gpu-operator-certified  v22.9    gpu-operator-certified.v22.9.2
+gpu-operator-certified  v23.3    gpu-operator-certified.v23.3.2
+gpu-operator-certified  v23.6    gpu-operator-certified.v23.6.1
+gpu-operator-certified  v23.9    gpu-operator-certified.v23.9.2
+gpu-operator-certified  v24.3    gpu-operator-certified.v24.3.0
+gpu-operator-certified  v24.6    gpu-operator-certified.v24.6.2
+gpu-operator-certified  v24.9    gpu-operator-certified.v24.9.1
+```
+#### **2.5.2 create nvidia GPU opertor catalog configuration file**
+create imagecontentset configuration file for the priviate image registry
+```bash
+./oc-mirror init --registry xxx.yyy.zzz.ttt:5000/oc-mirror-gpu-metadata > imageset-config-gpu.yaml   //xxx.yyy.zzz.ttt is the ip address of docker image registry
+
+```
+edit the imageset-config-gpu.yaml file, 
+```bash
+aods@artifactory:~/sam/openshift/registry$ cat imageset-config-gpu.yaml
+kind: ImageSetConfiguration
+apiVersion: mirror.openshift.io/v1alpha2
+storageConfig:
+  registry:
+    imageURL: xxx.yyy.zzz.ttt:5000/oc-mirror-gpu-metadata
+    skipTLS: false
+mirror:
+  platform:
+    channels:
+    - name: stable-4.16
+      type: ocp
+  operators:
+  - catalog: registry.redhat.io/redhat/certified-operator-index:v4.16
+    packages:
+    - name: gpu-operator-certified
+      channels:
+      - name: stable
+  additionalImages:
+  - name: registry.redhat.io/ubi8/ubi:latest
+  helm: {}
+
+```
+
+#### **2.5.3 mirror opertors from certificaed operator catalog repository to local docker image repository**
+```bash
+ ./oc-mirror --config=./imageset-config-gpu.yaml docker://10.48.8.199:5000
+
+test:~/sam/openshift/registry/oc-mirror-workspace$ ll -lt ./results-1735703662
+total 64
+drwxrwxr-x 8 aods aods  4096 Jan  1 04:18 ../
+drwxrwxr-x 4 aods aods  4096 Jan  1 03:54 ./
+-rwxrwxr-x 1 aods aods   937 Jan  1 03:54 imageContentSourcePolicy.yaml*
+-rwxrwxr-x 1 aods aods   232 Jan  1 03:54 catalogSource-cs-certified-operator-index.yaml*
+-rw-rw-r-- 1 aods aods 39914 Jan  1 03:54 mapping.txt
+drwxrwxr-x 2 aods aods  4096 Jan  1 03:44 release-signatures/
+drwxrwxr-x 2 aods aods  4096 Jan  1 03:43 charts/
+
+```
+
+#### **2.5.4 apply for the catalogsource and imageContentSourcePolicy files**
+apply for catalog source file and image content source policy files
+```bash
+test:~/sam/openshift/registry/oc-mirror-workspace/results-1735703662$ cat catalogSource-cs-certified-operator-index.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: cs-certified-operator-index
+  namespace: openshift-marketplace
+spec:
+  image: xxx.yyy.zzz.ttt:5000/redhat/certified-operator-index:v4.16
+  sourceType: grpc
+
+test:~/sam/openshift/registry/oc-mirror-workspace/results-1735703662$ kubectl apply -f catalogSource-cs-certified-operator-index.yaml
+
+test:~/sam/openshift/registry/oc-mirror-workspace/results-1735703662$
+test:~/sam/openshift/registry/oc-mirror-workspace/results-1735703662$ cat imageContentSourcePolicy.yaml
+---
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: generic-0
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/ubi8
+    source: registry.redhat.io/ubi8
+---
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  labels:
+    operators.openshift.org/catalog: "true"
+  name: operator-0
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/nvidia
+    source: nvcr.io/nvidia
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/nvidia
+    source: registry.connect.redhat.com/nvidia
+---
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: release-0
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/openshift/release-images
+    source: quay.io/openshift-release-dev/ocp-release
+  - mirrors:
+    - xxx.yyy.zzz.ttt:5000/openshift/release
+    source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+
+test:~/sam/openshift/registry/oc-mirror-workspace/results-1735703662$ kubectl apply -f imageContentSourcePolicy.yaml
+```
+
+
+#### **2.5.5 verify the nvidia-gpu operators are ready**
+```bash
+[test]$ oc get catalogsource -n openshift-marketplace
+NAME                          DISPLAY   TYPE   PUBLISHER   AGE
+cs-certified-operator-index             grpc               4d23h
+cs-redhat-operator-index                grpc               8d
+
+[test]$ oc get pods -n openshift-marketplace
+NAME                                                              READY   STATUS      RESTARTS   AGE
+0f5929d1a50c87d28c61e15821b25729780322682c98d6ee6bcacf80ca6bfr7   0/1     Completed   0          4d22h
+892565fa462b13d47be7a7f09e36780a4a90605b857abc8093af302edc5hfgq   0/1     Completed   0          8d
+91bf54d911e2de21c93e2ac91f922d908e86add46272981c80d3955143pms9p   0/1     Completed   0          8d
+c08e8af2d1f8d883506248d07907a7314d956307945238eb47e1d734e0ng7xw   0/1     Completed   0          5d23h
+c52d53f3e0548461524d59a9275a4217b89ab0b89328542f41afce7397vbvp6   0/1     Completed   0          8d
+cs-certified-operator-index-mnssr                                 1/1     Running     0          4d23h
+cs-redhat-operator-index-nsmc8                                    1/1     Running     2          8d
+marketplace-operator-7c5c648b99-pjnr9                             1/1     Running     14         9d
+
+```
