@@ -26,7 +26,7 @@
       - [2.3.1 extract the openshift-install tool from docker image registry](#231-extract-the-openshift-install-tool-from-docker-image-registry)
       - [2.3.2 copy the configuration into work directory](#232-copy-the-configuration-into-work-directory)
       - [2.3.3 create iso dicovery image](#233-create-iso-dicovery-image)
-      - [2.3.4 add the DNS entries into DNS server](#234-add-the-DNS-entries-into DNS-server)
+      - [2.3.4 add the DNS entries into DNS server](#234-add-the-DNS-entries-into-DNS-server)
       - [2.3.5 mount iso image into target server](#235-mount-iso-image-into-target-server)
         - [2.3.5.1 login the BMC network](#2351-login-the-BMC-network)
         - [2.3.5.2 configure server boot from CD/DVD Drive](#2352-configure-server-boot-from-CD-DVD-Drive)
