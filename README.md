@@ -1,11 +1,55 @@
-# openshift-installation-offline-for-RAN
+# Table of Contents
 
-# **Descriptions**
+- [Descriptions](#descriptions)
+- [Prerequistes](#prerequistes)
+  - [Hardware](#hardware)
+  - [software tool](#software-tool)
+- [installation steps](#installation-steps)
+  - [1. mirror redhat openshift images to private image registry](#1-mirror-redhat-openshift-images-to-private-image-registry)
+    - [1.1 prepare for the pull secret file](#11-prepare-for-the-pull-secret-file)
+    - [1.2 cp pull-secret file to global docker config file](#12-cp-pull-secret-file-to-global-docker-config-file)
+    - [1.3 prepare for the ImageSetConfiguraion file](#13-prepare-for-the-ImageSetConfiguraion-file)
+    - [1.4 mirror the openshift images to private image registry](#14-mirror-the-openshift-images-to-private-image-registry)
+      - [1.4.1 mirror remote redhat image registry to local disk](#141-mirror-remote-redhat-image-registry-to-local-disk)
+      - [1.4.2 uploading the images from local disk to private image registry](#142-uploading-the-images-from-local-disk-to-private-image-registry)
+      - [1.4.3 verify the image availability via querying repository](#143-verify-the-image-availability-via-querying-repository)
+      - [1.4.4 identify the image content source policy and catalog source custom resource manifests][#144-identify-the-image-content-source-policy-and-catalog-source-custom-resource-manifests]
+  - [2. deploy openshift container platform](#2-deploy-openshift-container-platform)
+    - [2.1 tool insallation in jump server](#21-tool-insallation-in-jump-server)
+    - [2.2 prepare for the configuration file for OCP deployment](#22-prepare-for-the-configuration-file-for-OCP-deployment)
+      - [2.2.1 image content source policy](#221-image-content-source-policy)
+      - [2.2.2 pull-secret.json](#222-pull-secret-json)
+      - [2.2.3 prepare for agent config file](#223-prepare-for-agent-config-file)
+      - [2.2.4 prepare for install-config file](#224-prepare-for-install-config-file)
+      - [2.2.5 prepare for chronyd file](#225-prepare-for-chronyd-file)
+    - [2.3 deploy OCP](#23-deploy-OCP)
+      - [2.3.1 extract the openshift-install tool from docker image registry](#231-extract-the-openshift-install-tool-from-docker-image-registry)
+      - [2.3.2 copy the configuration into work directory](#232-copy-the-configuration-into-work-directory)
+      - [2.3.3 create iso dicovery image](#233-create-iso-dicovery-image)
+      - [2.3.4 add the DNS entries into DNS server](#234-add-the-DNS-entries-into DNS-server)
+      - [2.3.5 mount iso image into target server](#235-mount-iso-image-into-target-server)
+        - [2.3.5.1 login the BMC network](#2351-login-the-BMC-network)
+        - [2.3.5.2 configure server boot from CD/DVD Drive](#2352-configure-server-boot-from-CD-DVD-Drive)
+        - [2.3.5.3 mount iso file](#2353-mount-iso-file)
+        - [2.3.5.4 reset server](#2354-reset-server)
+      - [2.3.6 monitor the installation progress](#236-monitor-the-installation-progress)
+    - [2.4 OCP post configuration](#24-OCP-post-configuration)
+      - [2.4.1 disable the default catalog sources](#241-disable-the-default-catalog-sources)
+      - [2.4.2 verify catalog sources](#242-verify-catalog-sources)
+      - [2.4.3 configure the operators](#243-configure-the-operators)
+    - [2.5 Additional OCP post configuration](#25-Additional-OCP-post-configuration)
+      - [2.5.1 query the nvidia GPU opertor catalog](#251-query-the-nvidia-GPU-opertor-catalog)
+      - [2.5.2 create nvidia GPU opertor catalog configuration file](#252-create-nvidia-GPU-opertor-catalog-configuration-file)
+      - [2.5.3 mirror opertors from certificaed operator catalog repository to local docker image repository](#253-mirror-opertors-from-certificaed-operator-catalog-repository-to-local-docker-image-repository)
+      - [2.5.4 apply for the catalogsource and imageContentSourcePolicy files](#254-apply-for-the-catalogsource-and-imageContentSourcePolicy-files)
+      - [2.5.5 verify the nvidia-gpu operators are ready](#255-verify-the-nvidia-gpu-operators-are-ready)
+        
+## **Descriptions**
 This repository is to specify how to offline install openshift due to some network restriction scenarios.
 
 
-# **Prerequistes**
-## **Hardware**
+## **Prerequistes**
+### **Hardware**
 a. HPE/Dell/Supermicro/Nvidia server as target server which need install openshift
 
 b. HPE/Dell server as image registry server
@@ -18,7 +62,7 @@ e. NTP server (optional)
 
 note: if possible, DNS,NTP and image registry can be in same one hardware server
 
-## **software tool**
+### **software tool**
 a. docker image registry   refer: https://github.com/g21chen/PriviateImageRegistry
    Note: image registry server need the access to redhat openshift registry for openshift images pulling.
    
@@ -33,9 +77,9 @@ e. openshift-client-linux download example: https://mirror.openshift.com/pub/ope
 note: move binaries oc-mirror and oc into /usr/local/bin/
 
 
-# **installation steps**
-## **1. mirror redhat openshift images to private image registry**
-### **1.1 prepare for the pull secret file**
+## **installation steps**
+### **1. mirror redhat openshift images to private image registry**
+#### **1.1 prepare for the pull secret file**
 Pulling redhat openshift images requests the pull secret file of specific redhat account. Your personal pull secret for the Red Hat online repositories can be downloaded from Red Hat (requires Red Hat account).
 ![pullsecret](https://github.com/user-attachments/assets/da4c0fe4-3b9b-4a98-b8a6-0f7fba347e36)
 
@@ -65,11 +109,11 @@ add the credentials of accessing private image registry into pull-secret.json fi
    }
 }
 ```
-### **1.2 cp pull-secret file to global docker config file**
+#### **1.2 cp pull-secret file to global docker config file**
 cp pull-secret.json ~/.docker/config.json
 
 
-### **1.3 prepare for the ImageSetConfiguraion file**
+#### **1.3 prepare for the ImageSetConfiguraion file**
 The imageSetConfiguraiton.yaml file defines all necesrray image files and operators catalog. Here are the example for ImageSetConfiguration.yaml file
 ```yaml
 {
@@ -106,10 +150,10 @@ mirror:
 
 note: if needs the images and catalog not from redhat, it needs specify the separate imageSetConfiguration file to define them. e.g Nvidia-GPU operator is not provided by redhat.
 
-### **1.4 mirror the openshift images to private image registry**
+#### **1.4 mirror the openshift images to private image registry**
 There are two options to mirror images to private image registry, one is directly mirror images from remote redhat registry to local private image registry. another one is firstly mirror from remote redhat image registry to local disk and then upload from local to priviate image registry. the example is using the 2nd option.
 
-#### **1.4.1 mirror remote redhat image registry to local disk**
+##### **1.4.1 mirror remote redhat image registry to local disk**
 
 oc mirror --config=./ImageSetConfiguration.yaml file:release_mirror/
 ```bash
@@ -121,11 +165,11 @@ drwxr-x--- 3 rmatusch rmatusch         4096 Aug  5 10:33 ..
 drwxr-xr-x 4 rmatusch rmatusch         4096 Aug  5 13:04 oc-mirror-workspace
 ```
 
-#### **1.4.2 uploading the images from local disk to private image registry**
+##### **1.4.2 uploading the images from local disk to private image registry**
 oc mirror --from=.release_mirror/mirror_seq1_000000.tar docker://xxx.yyy.zzz.ttt:5000         //xxx.yyy.zzz.ttt is the ip of priviate image registry
 
 
-#### **1.4.3 verify the image availability via querying repository**
+##### **1.4.3 verify the image availability via querying repository**
 curl -s -u "xxx:yyy" https://zzz.ttt.aaa.bbb:5000/v2/_catalog --cacert domain.crt | jq .
 
 ```bash
@@ -242,7 +286,7 @@ domain.crt: certificate of priviate docker image registry
 }
 ```
 
-#### **1.4.4 identify the image content source policy and catalog source custom resource manifests**
+##### **1.4.4 identify the image content source policy and catalog source custom resource manifests**
 After uploading the image to priviate docker image registry, it auto generates the image content source policy and catalog source customer resources manifests file under directory./oc-mirror-workspace/, those manifests files are requested for OCP instllation in later phase. the example:
 ```bash
 xxx:~/sam/openshift/registry/oc-mirror-workspace$ ll results-1735268307
@@ -345,8 +389,8 @@ spec:
   sourceType: grpc
 
 ```
-## **2 deploy openshift container platform**
-### **2.1 tool insallation in jump server**
+### **2 deploy openshift container platform**
+#### **2.1 tool insallation in jump server**
 install nmstate.  nmstate is required for the network configuration in ocp installation
 
 redhat/centos/rocky: 
@@ -357,8 +401,8 @@ $ dnf list nmstate --installed
 Installed Packages
 nmstate.x86_64                                                                        2.2.21-2.fc38                                                                        @updates
 ```
-### **2.2 prepare for the configuration file for OCP deployment**
-#### "2.2.1 image content source policy"
+#### **2.2 prepare for the configuration file for OCP deployment**
+##### **2.2.1 image content source policy**
 ImageContentSourcePolicy.yaml
 ```yaml
 apiVersion: operator.openshift.io/v1alpha1
@@ -372,7 +416,7 @@ spec:
     source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
 
 ```
-#### "2.2.2 pull-secret.json"
+##### **2.2.2 pull-secret.json**
 ```json
 {
     "auths": {
@@ -385,7 +429,7 @@ spec:
 ```
 auth are base64 encoded result of the credentials when create the priviate image registry
 
-#### "2.2.3 prepare for agent config file"
+##### **2.2.3 prepare for agent config file**
 agent-config file configure the infra network to communcate with outside, dns server. below is the example of single node:
 ```yaml
 apiVersion: v1alpha1
@@ -440,7 +484,7 @@ hosts:
 
 ```
 
-#### **2.2.4 prepare for install-config file**
+##### **2.2.4 prepare for install-config file**
 install-config file includes the hardware cpu model, deployment type, internal cluster network, ssh public key, image source contents policy, pull-secret and certificates.
 ```bash
 apiVersion: v1
@@ -514,7 +558,7 @@ additionalTrustBundle: |
   7VY=
   -----END CERTIFICATE-----
 ```
-#### **2.2.5 prepare for chronyd file**
+##### **2.2.5 prepare for chronyd file**
 The target server as NTP client need configure the NTP server address in chronyd configuration file
 ```yaml
 [xxx]$ cat 99-masters-chrony-configuration.yaml
@@ -546,8 +590,8 @@ server 10.48.xxx.yyy iburst
 $
 ```
 
-### **2.3 deploy OCP**
-#### **2.3.1 extract the openshift-install tool from docker image registry**
+#### **2.3 deploy OCP**
+##### **2.3.1 extract the openshift-install tool from docker image registry**
 The prepared files in 2.2.1, 2.2.2 and certiicates are required for this step, the commandline as below:
 ```bash
 oc adm release extract --command=openshift-install --certificate-authority=/home/labuser/sam/ocp-install/ocp/artifacts/openshift/domain.crt xxx.yyy.zzz.ttt:5000/openshift/release-images:4.16.24-x86_64 --icsp-file=/home/labuser/sam/ocp-install/ocp/artifacts/openshift/ImageContentSourcePolicy.yaml --to=/home/labuser/sam/ocp-install/ocp/artifacts/ -a /home/labuser/sam/ocp-install/ocp/artifacts/openshift/pull_secret.json
@@ -555,7 +599,7 @@ oc adm release extract --command=openshift-install --certificate-authority=/home
 ```
 after this step, it generates the openshift-install bin.
 
-#### **2.3.2 copy the configuration into work directory**
+##### **2.3.2 copy the configuration into work directory**
 copy all mandatory files into the work directory. example as below:
 ```bash
 [xxxxxxx]$ tree
@@ -572,7 +616,7 @@ copy all mandatory files into the work directory. example as below:
 
 ```
 
-#### **2.3.3 create iso dicovery image**
+##### **2.3.3 create iso dicovery image**
  ./openshift-install agent create image --dir /home/labuser/sam/ocp-install/ocp/artifacts
 
 output:
@@ -597,7 +641,7 @@ kubeconfig: kube config file to access k8s API server
 note: after this step, some configuration files in this directory will be automatcially removed.
 
 
-#### **2.3.4 add the DNS entries into DNS server**
+##### **2.3.4 add the DNS entries into DNS server**
 examples on DNS entries
 ```bash
 api.clustername.domainname                  3600    xxx.yyy.zzz.ttt
@@ -607,27 +651,27 @@ master0.clustername.domainname              3600    xxx.yyy.zzz.ttt
 ```
 clustername and domainname shall be aligned with configuration in install-config.yaml file in 2.2.4. xxx.yyy.zzz.ttt is the infrastructure IP.
 
-#### **2.3.5 mount iso image into target server**
-##### **2.3.5.1 login the BMC network**
+##### **2.3.5 mount iso image into target server**
+###### **2.3.5.1 login the BMC network**
 
 ![ILO BMC](https://github.com/user-attachments/assets/db3b4aea-de43-45e5-9b1e-248b37d29b53)
 
-##### **2.3.5.2 configure server boot from CD/DVD Drive**
+###### **2.3.5.2 configure server boot from CD/DVD Drive**
 
 ![BOOT-FROM-CD](https://github.com/user-attachments/assets/4cc29f5d-c3bc-4efe-9e11-e4cfae913255)
 
 
-##### **2.3.5.3 mount iso file**
+###### **2.3.5.3 mount iso file**
 
 ![mount iso](https://github.com/user-attachments/assets/b61635a1-afcd-4ac9-97be-7a2e062e1556)
 
-##### **2.3.5.4 reset server**
+###### **2.3.5.4 reset server**
 ![reset](https://github.com/user-attachments/assets/cda771fa-e070-486c-9de4-6611af1adf75)
 
 after reset, the iso is loaded in server and one simiple redhat OS is available, and it will trigger the connection to redhat assisted installer.
 
 
-#### **2.3.6 monitor the installation progress**
+##### **2.3.6 monitor the installation progress**
 ```bash
 [test]$   ./openshift-install agent wait-for install-complete --dir /home/labuser/sam/ocp-install/ocp/artifacts
 
@@ -680,10 +724,10 @@ INFO Login to the console with user: "kubeadmin", and password: "XQtqF-g2kUZ-YVW
 
 ```
 
-### **2.4 OCP post configuration**
+#### **2.4 OCP post configuration**
 After step 2.3, the basic OCP installation is completed, but usually it needs do further operations installations which not included in default OCP installations. e.g LVMS, SR-IOV, PTP and other independent Source Vendor operators.
 the catalog sources includes all provided operators. however, by default the catalog sources including redhat-operators, community-operators, certificated-opertora and redhat-marketplace are online catalogs. In offline OCP instllation mode, it needs to disable all current catalog sources, and activates the customerized/personal catalog source - cs-redhat-opertora-index.
-#### **2.4.1 disable the default catalog sources**
+##### **2.4.1 disable the default catalog sources**
 
 current catalogsource:
 ```bash
@@ -715,7 +759,7 @@ imagecontentsourcepolicy.operator.openshift.io/operator-0 created
 imagecontentsourcepolicy.operator.openshift.io/release-0 created
 $
 ```
-#### **2.4.2 verify catalog sources**
+##### **2.4.2 verify catalog sources**
 
 ```bash
 [test]$ oc get imagecontentsourcepolicy -A
@@ -735,11 +779,11 @@ marketplace-operator-7c5c648b99-pjnr9                             1/1     Runnin
 
 ```
 
-#### **2.4.3 configure the operators**
+##### **2.4.3 configure the operators**
 At this step, it has two options to install the operators under cs-redhat-operators-index. note: still some operators provided by independent source vendor are not included. e.g Nvidia-GPU operator.
 one option is to install operator from operator hub in redhat console GUI. another option is to use commandline to install it. below is one example with option2 to install the ptp oprerator via apply following three files.
 ```yaml
-[labuser@neat-152 ptp-sync]$ cat ptp-namespace.yaml
+[test]$ cat ptp-namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -749,8 +793,8 @@ metadata:
   labels:
     name: openshift-ptp
     openshift.io/cluster-monitoring: "true"
-[labuser@neat-152 ptp-sync]$
-[labuser@neat-152 ptp-sync]$ cat operator-groups.yaml
+[test]$
+[test]$ cat operator-groups.yaml
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
@@ -759,7 +803,7 @@ metadata:
 spec:
   targetNamespaces:
   - openshift-ptp
-[labuser@neat-152 ptp-sync]$ cat ptp-subscription.yaml
+[test]$ cat ptp-subscription.yaml
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
@@ -773,10 +817,10 @@ spec:
 
 ```
 
-### **2.5 Additional OCP post configuration**
+#### **2.5 Additional OCP post configuration**
 it requests additional OCP post configuration for some operators.e .g Nvidia-GPU opertor
 
-#### **2.5.1 query the nvidia GPU opertor catalog**
+##### **2.5.1 query the nvidia GPU opertor catalog**
 ```bash
 test:~/sam/openshift/registry$ ./oc-mirror list operators --catalog=registry.redhat.io/redhat/certified-operator-index:v4.16 --package=gpu-operator-certified
 NAME                    DISPLAY NAME         DEFAULT CHANNEL
@@ -794,7 +838,7 @@ gpu-operator-certified  v24.3    gpu-operator-certified.v24.3.0
 gpu-operator-certified  v24.6    gpu-operator-certified.v24.6.2
 gpu-operator-certified  v24.9    gpu-operator-certified.v24.9.1
 ```
-#### **2.5.2 create nvidia GPU opertor catalog configuration file**
+##### **2.5.2 create nvidia GPU opertor catalog configuration file**
 create imagecontentset configuration file for the priviate image registry
 ```bash
 ./oc-mirror init --registry xxx.yyy.zzz.ttt:5000/oc-mirror-gpu-metadata > imageset-config-gpu.yaml   //xxx.yyy.zzz.ttt is the ip address of docker image registry
@@ -826,7 +870,7 @@ mirror:
 
 ```
 
-#### **2.5.3 mirror opertors from certificaed operator catalog repository to local docker image repository**
+##### **2.5.3 mirror opertors from certificaed operator catalog repository to local docker image repository**
 ```bash
  ./oc-mirror --config=./imageset-config-gpu.yaml docker://10.48.8.199:5000
 
@@ -842,7 +886,7 @@ drwxrwxr-x 2 aods aods  4096 Jan  1 03:43 charts/
 
 ```
 
-#### **2.5.4 apply for the catalogsource and imageContentSourcePolicy files**
+##### **2.5.4 apply for the catalogsource and imageContentSourcePolicy files**
 apply for catalog source file and image content source policy files
 ```bash
 test:~/sam/openshift/registry/oc-mirror-workspace/results-1735703662$ cat catalogSource-cs-certified-operator-index.yaml
@@ -902,7 +946,7 @@ test:~/sam/openshift/registry/oc-mirror-workspace/results-1735703662$ kubectl ap
 ```
 
 
-#### **2.5.5 verify the nvidia-gpu operators are ready**
+##### **2.5.5 verify the nvidia-gpu operators are ready**
 ```bash
 [test]$ oc get catalogsource -n openshift-marketplace
 NAME                          DISPLAY   TYPE   PUBLISHER   AGE
