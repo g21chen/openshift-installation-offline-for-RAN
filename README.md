@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/caae810a-69ff-4376-b7f4-14f4f0619c61)# openshift-installation-offline-for-RAN
+# openshift-installation-offline-for-RAN
 
 # **Descriptions**
 This repository is to specify how to offline install openshift due to some network restriction scenarios.
